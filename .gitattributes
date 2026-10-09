@@ -1,0 +1,16 @@
+* text=auto eol=lf
+
+# Container shell scripts must keep LF endings, even on Windows checkouts.
+*.sh text eol=lf
+Dockerfile text eol=lf
+
+*.ps1 text eol=crlf
+
+*.blade.php diff=html
+*.css diff=css
+*.html diff=html
+*.md diff=markdown
+*.php diff=php
+
+*.ico binary
+*.png binary

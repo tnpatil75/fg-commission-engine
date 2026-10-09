@@ -1,0 +1,72 @@
+# FG commission/referral rules engine - local demo.
+# Start:  docker compose up --build        Browse: http://127.0.0.1:8080
+# Tests:  docker compose exec app php artisan test
+#
+# All values below are non-sensitive demo defaults. Optional overrides can be placed in a project-root
+# .env file (see .env.example); copying it is not required to start the demo.
+
+name: fg-commission
+
+services:
+  app:
+    build: .
+    image: fg-commission-app:local
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    environment:
+      APP_NAME: "FG Commission Rules (demo)"
+      APP_ENV: local
+      APP_DEBUG: "${APP_DEBUG:-false}"
+      APP_URL: "http://127.0.0.1:${APP_PORT:-8080}"
+      SUPPLIED_APP_KEY: "${APP_KEY:-}"
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: info
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: "${DB_DATABASE:-commission}"
+      DB_USERNAME: "${DB_USERNAME:-commission}"
+      DB_PASSWORD: "${DB_PASSWORD:-commission_demo_password}"
+      SESSION_DRIVER: file
+      CACHE_STORE: file
+      QUEUE_CONNECTION: sync
+    volumes:
+      - app-data:/var/app-data
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/up') === false ? 1 : 0);"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    restart: unless-stopped
+
+  db:
+    build: ./docker/mysql
+    image: fg-commission-mysql:local
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-root_demo_password}"
+      MYSQL_DATABASE: "${DB_DATABASE:-commission}"
+      MYSQL_USER: "${DB_USERNAME:-commission}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:-commission_demo_password}"
+      # Separate database and credentials for automated tests (must match phpunit.xml).
+      MYSQL_TEST_DATABASE: commission_test
+      MYSQL_TEST_USER: commission_test
+      MYSQL_TEST_PASSWORD: commission_test_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # TCP ping only succeeds once the real server is up, not the temporary server used during initialisation.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    # No ports are published: MySQL is reachable only from the app container.
+
+volumes:
+  mysql-data:
+  app-data:
